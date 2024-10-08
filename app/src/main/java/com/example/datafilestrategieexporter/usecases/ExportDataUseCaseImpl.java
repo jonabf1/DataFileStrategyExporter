@@ -14,9 +14,9 @@ public class ExportDataUseCaseImpl implements ExportDataUseCase {
     public List<ExportData> prepareExportData() {
         // Simulando a preparação dos dados para exportação
         List<ExportData> dataList = new ArrayList<>();
-        dataList.add(new ExportData(1, "John Doe", 25, "jon@gmail.com"));
+        dataList.add(new ExportData(1, "John Doe", 25, null));
         dataList.add(new ExportData(2, "Jane Smith", 30, null));
-        dataList.add(new ExportData(3, "Peter Johnson", 28, "peter@gmail.com"));
+        dataList.add(new ExportData(3, "Peter Johnson", 28, null));
         return dataList;
     }
 }
