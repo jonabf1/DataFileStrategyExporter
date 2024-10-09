@@ -1,5 +1,5 @@
 
-package com.example.datafilestrategieexporter.usecases;
+package com.example.datafilestrategieexporter.domain.interfaces;
 
 import com.example.datafilestrategieexporter.domain.entities.Header;
 

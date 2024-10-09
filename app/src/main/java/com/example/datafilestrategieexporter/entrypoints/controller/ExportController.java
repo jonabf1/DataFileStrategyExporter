@@ -2,13 +2,13 @@
 package com.example.datafilestrategieexporter.entrypoints.controller;
 
 import com.example.datafilestrategieexporter.application.service.ExportService;
-import com.example.datafilestrategieexporter.usecases.ExportBuilder;
+import com.example.datafilestrategieexporter.usecases.ExportBuilderDto;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 @RestController
@@ -22,13 +22,15 @@ public class ExportController {
     }
 
     @GetMapping("/download")
-    public void downloadExport(@RequestParam("type") String type, HttpServletResponse response) throws IOException {
-        ExportBuilder builder = ExportBuilder.builder()
-                .response(response)
-                .type(type)
+    public ResponseEntity downloadExport(@RequestParam("type") String type, @RequestParam("flow") String flow) throws IOException {
+        ExportBuilderDto builder = ExportBuilderDto.builder()
+                .type(type.toUpperCase())
+                .flow(flow.toUpperCase())
                 .build();
 
         exportService.executeExportBuilder(builder);
-        response.setStatus(HttpServletResponse.SC_OK);
+
+        return ResponseEntity.ok().build();
     }
+
 }

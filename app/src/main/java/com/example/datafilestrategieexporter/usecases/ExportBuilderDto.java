@@ -5,14 +5,13 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.servlet.http.HttpServletResponse;
-
 @Getter
 @Setter
 @Builder
-public class ExportBuilder {
+public class ExportBuilderDto {
 
-    private HttpServletResponse response;
     private String type;
+
+    private String flow;
 
 }

@@ -2,6 +2,7 @@
 package com.example.datafilestrategieexporter.usecases;
 
 import com.example.datafilestrategieexporter.domain.entities.Header;
+import com.example.datafilestrategieexporter.domain.interfaces.HeaderUseCase;
 import org.springframework.stereotype.Service;
 
 @Service

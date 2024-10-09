@@ -1,9 +1,6 @@
 package com.example.datafilestrategieexporter.adapters.export;
 
-import com.example.datafilestrategieexporter.domain.entities.ExportData;
-import com.example.datafilestrategieexporter.domain.interfaces.ExportStrategy;
-import com.example.datafilestrategieexporter.usecases.ExportBuilder;
-import com.example.datafilestrategieexporter.usecases.ExportDataUseCase;
+import com.example.datafilestrategieexporter.domain.interfaces.IExport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,9 +9,10 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
-public class CsvExportStrategy extends AbstractExportStrategy implements ExportStrategy {
+public class CsvExportStrategy<T> extends AbstractExportStrategy<T> implements IExport<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(CsvExportStrategy.class);
 
@@ -23,49 +21,77 @@ public class CsvExportStrategy extends AbstractExportStrategy implements ExportS
 
     private final String fileName = "DTO_Export.csv";
 
-    private final ExportDataUseCase exportDataUseCase;
-
-    public CsvExportStrategy(ExportDataUseCase exportDataUseCase) {
-        this.exportDataUseCase = exportDataUseCase;
-    }
+    private List<T> dataList;
 
     @Override
-    public void export(ExportBuilder exportBuilder) throws IOException {
-        // Obter a lista de dados para exportação (ExportData)
-        List<ExportData> dataList = exportDataUseCase.prepareExportData();
+    public void export(T header, List<T> data) throws IOException {
+        this.dataList = data;
+
+        // Preparar o conteúdo do CSV
+        String csvContent = prepareCsvContent();
+
+        // Salvar conteúdo no sistema de arquivos ou enviar para armazenamento remoto
+        saveCsvContent(csvContent);
+    }
+
+    /**
+     * Prepara o conteúdo completo do CSV (cabeçalho e linhas de dados).
+     *
+     * @return Conteúdo do CSV como String.
+     */
+    private String prepareCsvContent() {
         StringBuilder csvContent = new StringBuilder();
 
-        // Obter e ordenar os campos com base na anotação @ExcelOrder
-        List<Field> orderedFields = super.getOrderedFields(ExportData.class);
+        // Criar cabeçalho e preencher as colunas
+        List<Field> orderedFields = super.getOrderedFields(dataList.get(0).getClass());
+        createCsvHeader(csvContent, orderedFields);
 
-        // Adicionar cabeçalho ao CSV (nomes das colunas)
-        for (Field field : orderedFields) {
-            csvContent.append(field.getName()).append(",");
+        // Criar linhas de dados e preencher o CSV
+        createCsvRows(csvContent, orderedFields, dataList);
+
+        return csvContent.toString();
+    }
+
+    /**
+     * Cria o cabeçalho do CSV com os nomes das colunas.
+     */
+    private void createCsvHeader(StringBuilder csvContent, List<Field> orderedFields) {
+        String header = orderedFields.stream()
+                .map(Field::getName)
+                .collect(Collectors.joining(","));
+        csvContent.append(header).append("\n");
+    }
+
+    /**
+     * Cria as linhas de dados do CSV usando os valores de cada campo.
+     */
+    private void createCsvRows(StringBuilder csvContent, List<Field> orderedFields, List<T> dataList) {
+        for (T data : dataList) {
+            String row = orderedFields.stream()
+                    .map(field -> {
+                        try {
+                            field.setAccessible(true);
+                            Object value = field.get(data);
+                            return value != null ? value.toString() : "";
+                        } catch (IllegalAccessException e) {
+                            logger.error("Erro ao acessar valor do campo {}: {}", field.getName(), e.getMessage());
+                            return "";
+                        }
+                    })
+                    .collect(Collectors.joining(","));
+            csvContent.append(row).append("\n");
         }
-        csvContent.deleteCharAt(csvContent.length() - 1).append("\n"); // Remover última vírgula e adicionar nova linha
+    }
 
-        // Iterar sobre os dados e preencher o CSV
-        for (ExportData data : dataList) {
-            for (Field field : orderedFields) {
-                field.setAccessible(true);
-                try {
-                    Object value = field.get(data); // Pega o valor do campo via reflexão
-                    csvContent.append(value != null ? value.toString() : "").append(",");
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                }
-            }
-
-            // Remover a última vírgula e adicionar nova linha
-            csvContent.deleteCharAt(csvContent.length() - 1).append("\n");
-        }
-
-        // Verificar se deve salvar no sistema de arquivos ou em um bucket
+    /**
+     * Salva o conteúdo CSV no sistema de arquivos ou envia para armazenamento remoto.
+     */
+    private void saveCsvContent(String csvContent) throws IOException {
         if (saveToFile) {
-            super.saveToFile(csvContent.toString(), fileName);
-            logger.info("Excel file saved to local storage as {}", fileName);
+            super.saveToFile(csvContent, fileName);
+            logger.info("CSV file saved to local storage as {}", fileName);
         } else {
-            logger.info("File needs to be saved to a remote storage");
+            logger.info("CSV file needs to be saved to a remote storage.");
         }
     }
 

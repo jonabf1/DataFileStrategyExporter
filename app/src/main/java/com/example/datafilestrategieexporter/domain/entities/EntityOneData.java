@@ -11,7 +11,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class ExportData {
+public class EntityOneData {
 
     @ExcelColumn(name = "ID")
     @Order(1)

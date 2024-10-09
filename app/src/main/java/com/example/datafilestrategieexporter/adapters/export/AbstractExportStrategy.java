@@ -1,18 +1,24 @@
-
 package com.example.datafilestrategieexporter.adapters.export;
 
 import com.example.datafilestrategieexporter.domain.annotations.IgnoreIfEmpty;
 import com.example.datafilestrategieexporter.domain.annotations.Order;
-import com.example.datafilestrategieexporter.domain.entities.ExportData;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-public abstract class AbstractExportStrategy {
+public abstract class AbstractExportStrategy<T> {
+
+    private static final Logger logger = LoggerFactory.getLogger(AbstractExportStrategy.class);
 
     /**
      * Obtém e ordena os campos de uma classe com base na anotação @Order.
@@ -21,16 +27,12 @@ public abstract class AbstractExportStrategy {
      * @return Lista de campos ordenados
      */
     protected List<Field> getOrderedFields(Class<?> clazz) {
-        Field[] fields = clazz.getDeclaredFields();
-        List<Field> fieldList = new ArrayList<>(Arrays.asList(fields));
-
-        // Ordena os campos com base no valor da anotação @Order
-        fieldList.sort(Comparator.comparingInt(field -> {
-            Order order = field.getAnnotation(Order.class);
-            return (order != null) ? order.value() : Integer.MAX_VALUE;
-        }));
-
-        return fieldList;
+        return Arrays.stream(clazz.getDeclaredFields())
+                .sorted(Comparator.comparingInt(field -> {
+                    Order order = field.getAnnotation(Order.class);
+                    return (order != null) ? order.value() : Integer.MAX_VALUE;
+                }))
+                .collect(Collectors.toList());
     }
 
     /**
@@ -40,58 +42,41 @@ public abstract class AbstractExportStrategy {
      * @param orderedFields Lista de campos ordenados
      * @return Conjunto de campos a serem ignorados
      */
-    protected Set<Field> getFieldsToIgnore(List<ExportData> dataList, List<Field> orderedFields) {
-        Set<Field> fieldsToIgnore = new HashSet<>();
-
-        for (Field field : orderedFields) {
-            // Verificar se o campo possui a anotação @IgnoreIfEmpty
-            if (field.isAnnotationPresent(IgnoreIfEmpty.class)) {
-                boolean shouldIgnore = true;
-
-                for (ExportData data : dataList) {
-                    field.setAccessible(true);
-                    try {
-                        Object value = field.get(data);
-                        // Verificar se o valor é nulo ou vazio (string)
-                        if (value != null && !value.toString().trim().isEmpty()) {
-                            shouldIgnore = false;
-                            break; // Se encontrar um valor não nulo e não vazio, a coluna não deve ser ignorada
-                        }
-                    } catch (IllegalAccessException e) {
-                        e.printStackTrace();
-                    }
-                }
-
-                if (shouldIgnore) {
-                    fieldsToIgnore.add(field);
-                }
-            }
-        }
-        return fieldsToIgnore;
+    protected Set<Field> getFieldsToIgnore(List<T> dataList, List<Field> orderedFields) {
+        return orderedFields.stream()
+                .filter(this::shouldIgnoreField)
+                .filter(field -> isEmptyInAllData(dataList, field))
+                .collect(Collectors.toSet());
     }
 
-    /**
-     * Salva conteúdo em um arquivo local.
-     *
-     * @param content Conteúdo a ser salvo
-     * @param fileName Nome do arquivo
-     */
+    private boolean shouldIgnoreField(Field field) {
+        return field.isAnnotationPresent(IgnoreIfEmpty.class);
+    }
+
+    private boolean isEmptyInAllData(List<T> dataList, Field field) {
+        for (T data : dataList) {
+            try {
+                field.setAccessible(true);
+                Object value = field.get(data);
+                if (value != null && !value.toString().trim().isEmpty()) {
+                    return false;
+                }
+            } catch (IllegalAccessException e) {
+                logger.error("Erro ao acessar valor do campo {}: {}", field.getName(), e.getMessage());
+            }
+        }
+        return true;
+    }
+
     protected void saveToFile(String content, String fileName) throws IOException {
         try (FileOutputStream fileOut = new FileOutputStream(fileName)) {
             fileOut.write(content.getBytes(StandardCharsets.UTF_8));
         }
     }
 
-    /**
-     * Salva um workbook do Excel em um arquivo local.
-     *
-     * @param workbook Workbook do Excel a ser salvo
-     * @param fileName Nome do arquivo
-     */
     protected void saveToFile(XSSFWorkbook workbook, String fileName) throws IOException {
         try (FileOutputStream fileOut = new FileOutputStream(fileName)) {
             workbook.write(fileOut);
         }
     }
-
 }
