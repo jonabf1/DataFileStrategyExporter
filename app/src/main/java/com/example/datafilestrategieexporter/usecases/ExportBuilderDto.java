@@ -11,7 +11,6 @@ import lombok.Setter;
 public class ExportBuilderDto {
 
     private String type;
-
     private String flow;
 
 }

@@ -13,16 +13,16 @@ import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/export")
-public class ExportController {
+public class ExportController<T> {
 
-    private final ExportService exportService;
+    private final ExportService<T> exportService;
 
-    public ExportController(ExportService exportService) {
+    public ExportController(ExportService<T> exportService) {
         this.exportService = exportService;
     }
 
     @GetMapping("/download")
-    public ResponseEntity downloadExport(@RequestParam("type") String type, @RequestParam("flow") String flow) throws IOException {
+    public ResponseEntity<T> downloadExport(@RequestParam("type") String type, @RequestParam("flow") String flow) throws IOException {
         ExportBuilderDto builder = ExportBuilderDto.builder()
                 .type(type.toUpperCase())
                 .flow(flow.toUpperCase())
